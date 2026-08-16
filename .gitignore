@@ -24,3 +24,7 @@ yarn-error.log*
 # OS
 .DS_Store
 Thumbs.db
+
+
+# Local temporary files
+temp/
