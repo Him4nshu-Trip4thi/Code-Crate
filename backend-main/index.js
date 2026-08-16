@@ -1,14 +1,18 @@
 const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
+const cookie = require('cookie');
 const mongoose = require("mongoose");
 const bodyParser = require("body-parser");
 const http = require("http");
 const { Server } = require("socket.io");
+const helmet = require("helmet");
 const mainRouter = require("./routes/main.router");
+const { generalLimiter } = require("./middleware/rateLimiter");
+const errorHandler = require("./middleware/errorHandler");
 
-const yargs = require("yargs");
-const { hideBin } = require("yargs/helpers");
+const { Command } = require('commander');
+const program = new Command();
 
 const { initRepo } = require("./controllers/init");
 const { addRepo } = require("./controllers/add");
@@ -19,52 +23,47 @@ const { revertRepo } = require("./controllers/revert");
 
 dotenv.config();
 
-yargs(hideBin(process.argv))
-  .command("start", "Starts a new server", {}, startServer)
-  .command("init", "Initialise a new repository", {}, initRepo)
-  .command(
-    "add <file>",
-    "Add a file to the repository",
-    (yargs) => {
-      yargs.positional("file", {
-        describe: "File to add to the staging area",
-        type: "string",
-      });
-    },
-    (argv) => {
-      addRepo(argv.file);
-    }
-  )
-  .command(
-    "commit <message>",
-    "Commit the staged files",
-    (yargs) => {
-      yargs.positional("message", {
-        describe: "Commit message",
-        type: "string",
-      });
-    },
-    (argv) => {
-      commitRepo(argv.message);
-    }
-  )
-  .command("push", "Push commits to S3", {}, pushRepo)
-  .command("pull", "Pull commits from S3", {}, pullRepo)
-  .command(
-    "revert <commitID>",
-    "Revert to a specific commit",
-    (yargs) => {
-      yargs.positional("commitID", {
-        describe: "Comit ID to revert to",
-        type: "string",
-      });
-    },
-    (argv) => {
-      revertRepo(argv.commitID);
-    }
-  )
-  .demandCommand(1, "You need at least one command")
-  .help().argv;
+program
+  .name('backend')
+  .description('Code Crate backend CLI')
+  .version('1.0.0');
+
+program
+  .command('start')
+  .description('Starts a new server')
+  .action(() => startServer());
+
+program
+  .command('init')
+  .description('Initialise a new repository')
+  .action(() => initRepo());
+
+program
+  .command('add <file>')
+  .description('Add a file to the repository')
+  .action((file) => addRepo(file));
+
+program
+  .command('commit <message>')
+  .description('Commit the staged files')
+  .action((message) => commitRepo(message));
+
+program
+  .command('push')
+  .description('Push commits to S3')
+  .action(() => pushRepo());
+
+program
+  .command('pull')
+  .description('Pull commits from S3')
+  .action(() => pullRepo());
+
+program
+  .command('revert <commitID>')
+  .description('Revert to a specific commit')
+  .action((commitID) => revertRepo(commitID));
+
+program.parse(process.argv);
 
 function startServer() {
   const app = express();
@@ -72,17 +71,39 @@ function startServer() {
 
   app.use(bodyParser.json());
   app.use(express.json());
+  app.use(helmet());
+  // lightweight cookie parser using 'cookie' (avoid extra dependency issues)
+  app.use((req, res, next) => {
+    const raw = req.headers.cookie;
+    try {
+      req.cookies = raw ? cookie.parse(raw) : {};
+    } catch (e) {
+      req.cookies = {};
+    }
+    next();
+  });
 
-  const mongoURI = process.env.MONGODB_URI;
+  const mongoURI = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/codecrate";
+  if (!process.env.MONGODB_URI) {
+    console.warn("MONGODB_URI not set — using local default:", mongoURI);
+  }
 
   mongoose
     .connect(mongoURI)
     .then(() => console.log("MongoDB connected!"))
     .catch((err) => console.error("Unable to connect : ", err));
 
-  app.use(cors({ origin: "*" }));
+  // Default to Vite's typical dev port (5173). Allow override via FRONTEND_URL.
+  const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
+  app.use(cors({ origin: frontendOrigin, credentials: true }));
+
+  // Apply a general rate limiter to all API routes
+  app.use(generalLimiter);
 
   app.use("/", mainRouter);
+
+  // Centralized error handler (should be after routes)
+  app.use(errorHandler);
 
   let user = "test";
   const httpServer = http.createServer(app);

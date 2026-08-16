@@ -1,26 +1,35 @@
 import React from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import api from '../api';
+import { useAuth } from '../authContext';
 import "./navbar.css";
 
 const Navbar = () => {
+  const { setCurrentUser } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/logout');
+    } catch (e) {
+      // ignore
+    }
+    localStorage.removeItem('userId');
+    setCurrentUser(null);
+    navigate('/');
+  };
+
   return (
-    <nav>
-      <Link to="/">
-        <div>
-          <img
-            src="https://www.github.com/images/modules/logos_page/GitHub-Mark.png"
-            alt="GitHub Logo"
-          />
-          <h3>GitHub</h3>
-        </div>
+    <nav className="site-nav">
+      <Link to="/app" className="brand">
+        <img src="/CodeCrate.png" alt="Code Crate" />
+        <span>Code Crate</span>
       </Link>
-      <div>
-        <Link to="/create">
-          <p>Create a Repository</p>
-        </Link>
-        <Link to="/profile">
-          <p>Profile</p>
-        </Link>
+      <div className="nav-actions">
+        <Link to="/app">Dashboard</Link>
+        <Link to="/create">Create</Link>
+        <Link to="/profile">Profile</Link>
+        <button onClick={handleLogout} className="logout">Logout</button>
       </div>
     </nav>
   );

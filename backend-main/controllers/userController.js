@@ -1,58 +1,54 @@
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
-const { MongoClient } = require("mongodb");
 const dotenv = require("dotenv");
-var ObjectId = require("mongodb").ObjectId;
+const User = require("../models/userModel");
+const mongoose = require("mongoose");
 
 dotenv.config();
-const uri = process.env.MONGODB_URI;
 
-let client;
+if (!process.env.JWT_SECRET_KEY && process.env.NODE_ENV === "production") {
+  throw new Error("JWT_SECRET_KEY must be set in production");
+}
 
-async function connectClient() {
-  if (!client) {
-    client = new MongoClient(uri, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    });
-    await client.connect();
-  }
+function getJwtSecret() {
+  return process.env.JWT_SECRET_KEY || "dev_jwt_secret";
 }
 
 async function signup(req, res) {
   const { username, password, email } = req.body;
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
+    if (!username || !email || !password) {
+      return res.status(400).json({ message: "username, email and password are required" });
+    }
 
-    const user = await usersCollection.findOne({ username });
-    if (user) {
+    const existing = await User.findOne({ $or: [{ username }, { email }] });
+    if (existing) {
       return res.status(400).json({ message: "User already exists!" });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
+    const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = {
+    const created = await User.create({
       username,
-      password: hashedPassword,
       email,
+      password: hashedPassword,
       repositories: [],
       followedUsers: [],
       starRepos: [],
-    };
+    });
 
-    const result = await usersCollection.insertOne(newUser);
-
-    const token = jwt.sign(
-      { id: result.insertId },
-      process.env.JWT_SECRET_KEY,
-      { expiresIn: "1h" }
-    );
-    res.json({ token, userId: result.insertId });
+    const token = jwt.sign({ id: created._id }, getJwtSecret(), { expiresIn: "1h" });
+    // set httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000,
+    });
+    // return userId and token for programmatic clients
+    res.json({ userId: created._id, token });
   } catch (err) {
-    console.error("Error during signup : ", err.message);
+    console.error("Error during signup:", err);
     res.status(500).send("Server error");
   }
 }
@@ -60,11 +56,11 @@ async function signup(req, res) {
 async function login(req, res) {
   const { email, password } = req.body;
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
+    if (!email || !password) {
+      return res.status(400).json({ message: "email and password are required" });
+    }
 
-    const user = await usersCollection.findOne({ email });
+    const user = await User.findOne({ email });
     if (!user) {
       return res.status(400).json({ message: "Invalid credentials!" });
     }
@@ -74,49 +70,44 @@ async function login(req, res) {
       return res.status(400).json({ message: "Invalid credentials!" });
     }
 
-    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET_KEY, {
-      expiresIn: "1h",
+    const token = jwt.sign({ id: user._id }, getJwtSecret(), { expiresIn: "1h" });
+    // set httpOnly cookie
+    res.cookie('token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 1000,
     });
-    res.json({ token, userId: user._id });
+    res.json({ userId: user._id, token });
   } catch (err) {
-    console.error("Error during login : ", err.message);
+    console.error("Error during login:", err);
     res.status(500).send("Server error!");
   }
 }
 
 async function getAllUsers(req, res) {
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
-
-    const users = await usersCollection.find({}).toArray();
+    const users = await User.find({}).lean();
     res.json(users);
   } catch (err) {
-    console.error("Error during fetching : ", err.message);
+    console.error("Error during fetching:", err);
     res.status(500).send("Server error!");
   }
 }
 
 async function getUserProfile(req, res) {
   const currentID = req.params.id;
-
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
-
-    const user = await usersCollection.findOne({
-      _id: new ObjectId(currentID),
-    });
-
+    if (!mongoose.Types.ObjectId.isValid(currentID)) {
+      return res.status(400).json({ message: "Invalid user id" });
+    }
+    const user = await User.findById(currentID).lean();
     if (!user) {
       return res.status(404).json({ message: "User not found!" });
     }
-
     res.send(user);
   } catch (err) {
-    console.error("Error during fetching : ", err.message);
+    console.error("Error during fetching:", err);
     res.status(500).send("Server error!");
   }
 }
@@ -124,57 +115,46 @@ async function getUserProfile(req, res) {
 async function updateUserProfile(req, res) {
   const currentID = req.params.id;
   const { email, password } = req.body;
-
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
-
-    let updateFields = { email };
-    if (password) {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
-      updateFields.password = hashedPassword;
+    if (!mongoose.Types.ObjectId.isValid(currentID)) {
+      return res.status(400).json({ message: "Invalid user id" });
     }
 
-    const result = await usersCollection.findOneAndUpdate(
-      {
-        _id: new ObjectId(currentID),
-      },
-      { $set: updateFields },
-      { returnDocument: "after" }
-    );
-    if (!result.value) {
-      return res.status(404).json({ message: "User not found!" });
-    }
+    const updateFields = {};
+    if (email) updateFields.email = email;
+    if (password) updateFields.password = await bcrypt.hash(password, 10);
 
-    res.send(result.value);
+    const updated = await User.findByIdAndUpdate(currentID, updateFields, { new: true }).lean();
+    if (!updated) return res.status(404).json({ message: "User not found!" });
+    res.send(updated);
   } catch (err) {
-    console.error("Error during updating : ", err.message);
+    console.error("Error during updating:", err);
     res.status(500).send("Server error!");
   }
 }
 
 async function deleteUserProfile(req, res) {
   const currentID = req.params.id;
-
   try {
-    await connectClient();
-    const db = client.db("githubclone");
-    const usersCollection = db.collection("users");
-
-    const result = await usersCollection.deleteOne({
-      _id: new ObjectId(currentID),
-    });
-
-    if (result.deleteCount == 0) {
-      return res.status(404).json({ message: "User not found!" });
+    if (!mongoose.Types.ObjectId.isValid(currentID)) {
+      return res.status(400).json({ message: "Invalid user id" });
     }
-
+    const deleted = await User.findByIdAndDelete(currentID);
+    if (!deleted) return res.status(404).json({ message: "User not found!" });
     res.json({ message: "User Profile Deleted!" });
   } catch (err) {
-    console.error("Error during updating : ", err.message);
+    console.error("Error during deleting:", err);
     res.status(500).send("Server error!");
+  }
+}
+
+async function logout(req, res) {
+  try {
+    res.clearCookie('token');
+    res.json({ message: 'Logged out' });
+  } catch (err) {
+    console.error('Logout error', err);
+    res.status(500).send('Server error');
   }
 }
 
@@ -182,6 +162,7 @@ module.exports = {
   getAllUsers,
   signup,
   login,
+  logout,
   getUserProfile,
   updateUserProfile,
   deleteUserProfile,

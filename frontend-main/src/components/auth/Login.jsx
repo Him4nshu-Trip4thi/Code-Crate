@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
+import api from '../../api';
 import { useAuth } from "../../authContext";
+import { useNavigate } from 'react-router-dom';
+import ErrorBanner from '../common/ErrorBanner';
 
 import { PageHeader } from "@primer/react/drafts";
 import { Box, Button } from "@primer/react";
 import "./auth.css";
 
-import logo from "../../assets/github-mark-white.svg";
 import { Link } from "react-router-dom";
 
 const Login = () => {
@@ -20,27 +21,35 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const { setCurrentUser } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!email.trim()) return setError('Email is required.');
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRe.test(email)) return setError('Please enter a valid email address.');
+    if (!password) return setError('Password is required.');
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:3002/login", {
+      const res = await api.post(`/login`, {
         email: email,
         password: password,
       });
 
-      localStorage.setItem("token", res.data.token);
+      // server sets httpOnly cookie; keep only userId client-side
       localStorage.setItem("userId", res.data.userId);
-
       setCurrentUser(res.data.userId);
       setLoading(false);
 
-      window.location.href = "/";
+      navigate('/');
     } catch (err) {
       console.error(err);
-      alert("Login Failed!");
+      const msg = err?.response?.data?.message || 'Login failed. Please check credentials.';
+      setError(msg);
       setLoading(false);
     }
   };
@@ -48,7 +57,7 @@ const Login = () => {
   return (
     <div className="login-wrapper">
       <div className="login-logo-container">
-        <img className="logo-login" src={logo} alt="Logo" />
+        <img className="logo-login" src="/CodeCrate.png" alt="Code Crate" />
       </div>
 
       <div className="login-box-wrapper">
@@ -62,6 +71,7 @@ const Login = () => {
           </Box>
         </div>
         <div className="login-box">
+          <ErrorBanner message={error} />
           <div>
             <label className="label">Email address</label>
             <input
