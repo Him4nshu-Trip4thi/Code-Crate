@@ -1,5 +1,144 @@
 #dashboard {
   display: flex;
-  width: 1080px;
+  gap: 24px;
+  max-width: 1100px;
+  margin: 32px auto;
+  padding: 0 20px;
+  align-items: flex-start;
+}
+
+.dash-panel {
+  flex: 0 0 260px;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 16px;
+  color: whitesmoke;
+}
+
+.dash-panel h3 {
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.dash-main {
+  flex: 1;
+  color: whitesmoke;
+}
+
+.dash-main-header {
+  display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.dash-main-header h2 {
+  margin: 0;
+}
+
+.search-input {
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 8px 12px;
+  color: whitesmoke;
+  min-width: 220px;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #408ced;
+}
+
+.repo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.repo-card {
+  display: block;
+  border: 1px solid #1f2937;
+  border-radius: 10px;
+  padding: 14px 16px;
+  background: #0d1524;
+  text-decoration: none;
+  color: inherit;
+  transition: border-color 0.15s ease;
+}
+
+.repo-card:hover {
+  border-color: #408ced;
+}
+
+.repo-card h4 {
+  margin: 0 0 6px 0;
+  color: #408ced;
+  font-size: 17px;
+}
+
+.repo-card p {
+  margin: 0;
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.repo-card.small {
+  padding: 10px 12px;
+}
+
+.repo-card.small h4 {
+  font-size: 15px;
+}
+
+.repo-card-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.repo-card-actions button {
+  background: #1f2937;
+  color: whitesmoke;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.repo-card-actions button:hover {
+  background: #2d3b4e;
+}
+
+.repo-card-actions button.danger {
+  background: #3a1717;
+  color: #f87171;
+}
+
+.repo-card-actions button.danger:hover {
+  background: #4a1e1e;
+}
+
+.empty-hint {
+  color: #9ca3af;
+  font-size: 14px;
+}
+
+.empty-hint a {
+  color: #408ced;
+}
+
+@media screen and (max-width: 800px) {
+  #dashboard {
+    flex-direction: column;
+  }
+  .dash-panel {
+    flex: 1 1 auto;
+  }
 }

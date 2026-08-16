@@ -93,7 +93,8 @@ function startServer() {
     .then(() => console.log("MongoDB connected!"))
     .catch((err) => console.error("Unable to connect : ", err));
 
-  const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5175';
+  // Default to Vite's typical dev port (5173). Allow override via FRONTEND_URL.
+  const frontendOrigin = process.env.FRONTEND_URL || 'http://localhost:5173';
   app.use(cors({ origin: frontendOrigin, credentials: true }));
 
   // Apply a general rate limiter to all API routes

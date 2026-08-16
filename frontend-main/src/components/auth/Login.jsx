@@ -8,7 +8,6 @@ import { PageHeader } from "@primer/react/drafts";
 import { Box, Button } from "@primer/react";
 import "./auth.css";
 
-import logo from "../../assets/github-mark-white.svg";
 import { Link } from "react-router-dom";
 
 const Login = () => {
@@ -58,7 +57,7 @@ const Login = () => {
   return (
     <div className="login-wrapper">
       <div className="login-logo-container">
-        <img className="logo-login" src={logo} alt="Logo" />
+        <img className="logo-login" src="/CodeCrate.png" alt="Code Crate" />
       </div>
 
       <div className="login-box-wrapper">

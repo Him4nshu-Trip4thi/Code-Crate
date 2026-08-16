@@ -1,0 +1,106 @@
+.create-repo-page {
+  display: flex;
+  justify-content: center;
+  padding: 48px 20px;
+}
+
+.create-repo-card {
+  width: 100%;
+  max-width: 640px;
+  background: #0d1524;
+  border: 1px solid #1f2937;
+  border-radius: 12px;
+  padding: 32px;
+  color: whitesmoke;
+}
+
+.create-repo-card h2 {
+  margin: 0 0 6px 0;
+}
+
+.create-repo-hint {
+  color: #9ca3af;
+  font-size: 14px;
+  margin: 0 0 24px 0;
+}
+
+.create-repo-card label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  margin-top: 18px;
+}
+
+.create-repo-card label:first-of-type {
+  margin-top: 0;
+}
+
+.create-repo-card .optional {
+  color: #9ca3af;
+  font-weight: 400;
+}
+
+.create-repo-card input[type="text"],
+.create-repo-card input:not([type="checkbox"]),
+.create-repo-card textarea {
+  width: 100%;
+  background: #0b1220;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: whitesmoke;
+  font-family: inherit;
+  font-size: 14px;
+}
+
+.create-repo-card textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+.create-repo-card input:focus,
+.create-repo-card textarea:focus {
+  outline: none;
+  border-color: #408ced;
+}
+
+.checkbox-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-weight: 400 !important;
+}
+
+.checkbox-row input {
+  margin-top: 3px;
+  width: auto !important;
+}
+
+.form-error {
+  background: #3a1717;
+  color: #f87171;
+  border: 1px solid #5c2323;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 14px;
+  margin-bottom: 16px;
+}
+
+.primary-btn {
+  margin-top: 24px;
+  background: #408ced;
+  border: none;
+  padding: 10px 20px;
+  font-weight: 600;
+}
+
+.primary-btn:hover {
+  background: #2f78d8;
+  border-color: transparent;
+}
+
+.primary-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}

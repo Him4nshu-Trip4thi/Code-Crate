@@ -9,6 +9,7 @@ const Dashboard = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [suggestedRepositories, setSuggestedRepositories] = useState([]);
   const [searchResults, setSearchResults] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const userId = localStorage.getItem("userId");
@@ -16,10 +17,9 @@ const Dashboard = () => {
     const fetchRepositories = async () => {
       try {
         const resp = await api.get(`/repo/user/${userId}`);
-        const data = resp.data;
-        setRepositories(data.repositories || data || []);
+        setRepositories(resp.data.repositories || resp.data || []);
       } catch (err) {
-        console.error("Error while fecthing repositories: ", err);
+        console.error("Error while fetching repositories: ", err);
       }
     };
 
@@ -27,14 +27,14 @@ const Dashboard = () => {
       try {
         const resp = await api.get(`/repo/all`);
         setSuggestedRepositories(resp.data || []);
-        console.log(suggestedRepositories);
       } catch (err) {
-        console.error("Error while fecthing repositories: ", err);
+        console.error("Error while fetching repositories: ", err);
       }
     };
 
-    fetchRepositories();
-    fetchSuggestedRepositories();
+    Promise.all([fetchRepositories(), fetchSuggestedRepositories()]).finally(() =>
+      setLoading(false)
+    );
   }, []);
 
   useEffect(() => {
@@ -49,25 +49,25 @@ const Dashboard = () => {
   }, [searchQuery, repositories]);
 
   const deleteRepo = async (id) => {
+    if (!window.confirm("Delete this repository? This can't be undone.")) return;
     try {
       await api.delete(`/repo/delete/${id}`);
-      setRepositories((prev) => prev.filter(r => r._id !== id));
-      setSearchResults((prev) => prev.filter(r => r._id !== id));
+      setRepositories((prev) => prev.filter((r) => r._id !== id));
+      setSearchResults((prev) => prev.filter((r) => r._id !== id));
     } catch (err) {
-      console.error('Failed to delete repo', err);
+      console.error("Failed to delete repo", err);
     }
   };
 
   const editRepo = async (id) => {
-    const newDesc = prompt('Enter new description');
+    const newDesc = prompt("Enter new description");
     if (newDesc === null) return;
     try {
-      await api.put(`/repo/update/${id}`, { description: newDesc, content: '' });
-      // refresh list
-      const resp = await api.get(`/repo/user/${localStorage.getItem('userId')}`);
+      await api.put(`/repo/update/${id}`, { description: newDesc, content: "" });
+      const resp = await api.get(`/repo/user/${localStorage.getItem("userId")}`);
       setRepositories(resp.data.repositories || []);
     } catch (err) {
-      console.error('Failed to edit repo', err);
+      console.error("Failed to edit repo", err);
     }
   };
 
@@ -75,55 +75,64 @@ const Dashboard = () => {
     <>
       <Navbar />
       <section id="dashboard">
-        <aside>
+        <aside className="dash-panel">
           <h3>Suggested Repositories</h3>
-          {suggestedRepositories.map((repo) => {
-            return (
-              <div key={repo._id}>
+          {suggestedRepositories.length === 0 && !loading && (
+            <p className="empty-hint">No public repositories yet.</p>
+          )}
+          <div className="repo-list">
+            {suggestedRepositories.map((repo) => (
+              <Link to={`/repo/${repo._id}`} className="repo-card small" key={repo._id}>
                 <h4>{repo.name}</h4>
-                <h4>{repo.description}</h4>
-              </div>
-            );
-          })}
+                <p>{repo.description || "No description"}</p>
+              </Link>
+            ))}
+          </div>
         </aside>
-        <main>
-          <h2>Your Repositories</h2>
-          <div id="search">
+
+        <main className="dash-main">
+          <div className="dash-main-header">
+            <h2>Your Repositories</h2>
             <input
               type="text"
+              className="search-input"
               aria-label="Search repositories"
               value={searchQuery}
-              placeholder="Search..."
+              placeholder="Search your repos..."
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
-          {searchResults.map((repo) => {
-                return (
-              <div key={repo._id} style={{borderBottom: '1px solid #eee', padding: 8}}>
-                <h4><Link to={`/repo/${repo._id}`}>{repo.name}</Link></h4>
-                <p>{repo.description}</p>
-                <div style={{display: 'flex', gap: 8}}>
-                  <button onClick={() => editRepo(repo._id)} aria-label={`Edit ${repo.name}`}>Edit</button>
-                  <button onClick={() => deleteRepo(repo._id)} aria-label={`Delete ${repo.name}`}>Delete</button>
+
+          {loading && <p className="empty-hint">Loading...</p>}
+          {!loading && searchResults.length === 0 && (
+            <p className="empty-hint">
+              No repositories yet — <Link to="/create">create one</Link>.
+            </p>
+          )}
+
+          <div className="repo-list">
+            {searchResults.map((repo) => (
+              <div className="repo-card" key={repo._id}>
+                <Link to={`/repo/${repo._id}`}>
+                  <h4>{repo.name}</h4>
+                </Link>
+                <p>{repo.description || "No description"}</p>
+                <div className="repo-card-actions">
+                  <button onClick={() => editRepo(repo._id)} aria-label={`Edit ${repo.name}`}>
+                    Edit
+                  </button>
+                  <button
+                    className="danger"
+                    onClick={() => deleteRepo(repo._id)}
+                    aria-label={`Delete ${repo.name}`}
+                  >
+                    Delete
+                  </button>
                 </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </main>
-        <aside>
-          <h3>Upcoming Events</h3>
-          <ul>
-            <li>
-              <p>Tech Conference - Dec 15</p>
-            </li>
-            <li>
-              <p>Developer Meetup - Dec 25</p>
-            </li>
-            <li>
-              <p>React Summit - Jan 5</p>
-            </li>
-          </ul>
-        </aside>
       </section>
     </>
   );

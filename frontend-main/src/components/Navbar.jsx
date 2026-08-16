@@ -22,10 +22,7 @@ const Navbar = () => {
   return (
     <nav className="site-nav">
       <Link to="/app" className="brand">
-        <img
-          src="https://www.github.com/images/modules/logos_page/GitHub-Mark.png"
-          alt="Logo"
-        />
+        <img src="/CodeCrate.png" alt="Code Crate" />
         <span>Code Crate</span>
       </Link>
       <div className="nav-actions">
