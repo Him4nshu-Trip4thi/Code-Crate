@@ -1,6 +1,8 @@
-import React, { useState, useEffect } from "react";
-import axios from "axios";
+import React, { useState } from "react";
+import api from '../../api';
 import { useAuth } from "../../authContext";
+import { useNavigate } from 'react-router-dom';
+import ErrorBanner from '../common/ErrorBanner';
 
 import { PageHeader } from "@primer/react/drafts";
 import { Box, Button } from "@primer/react";
@@ -16,28 +18,37 @@ const Signup = () => {
   const [loading, setLoading] = useState(false);
 
   const { setCurrentUser } = useAuth();
+  const navigate = useNavigate();
+  const [error, setError] = useState("");
 
   const handleSignup = async (e) => {
     e.preventDefault();
+    setError("");
+
+    if (!username.trim()) return setError('Username is required.');
+      if (!email.trim()) return setError('Email is required.');
+      const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRe.test(email)) return setError('Please enter a valid email address.');
+    if (!password || password.length < 8) return setError('Password must be at least 8 characters.');
 
     try {
       setLoading(true);
-      const res = await axios.post("http://localhost:3002/signup", {
+      const res = await api.post(`/signup`, {
         email: email,
         password: password,
         username: username,
       });
 
-      localStorage.setItem("token", res.data.token);
+      // server sets httpOnly cookie; keep only userId client-side
       localStorage.setItem("userId", res.data.userId);
-
       setCurrentUser(res.data.userId);
       setLoading(false);
 
-      window.location.href = "/";
+      navigate('/');
     } catch (err) {
       console.error(err);
-      alert("Signup Failed!");
+      const msg = err?.response?.data?.message || 'Signup failed. Please try again.';
+      setError(msg);
       setLoading(false);
     }
   };
@@ -61,6 +72,7 @@ const Signup = () => {
 
         <div className="login-box">
           <div>
+            <ErrorBanner message={error} />
             <label className="label">Username</label>
             <input
               autoComplete="off"
